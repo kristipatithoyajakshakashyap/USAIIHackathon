@@ -1,0 +1,26 @@
+# --- Core perception (always needed) ---
+ultralytics>=8.3.0          # YOLO11 detection + pose + ByteTrack
+opencv-python>=4.10.0
+numpy>=1.26.0
+torch>=2.3.0                # install the CUDA build separately, see README
+torchvision>=0.18.0
+
+# --- API layer ---
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+websockets>=12.0
+pydantic>=2.7.0
+python-multipart>=0.0.9     # file uploads
+
+# --- Optional: scene understanding (--scene) ---
+transformers>=4.44.0        # CLIP / SigLIP
+pillow>=10.3.0
+
+# --- Optional: audio emotion (--audio) ---
+librosa>=0.10.2
+soundfile>=0.12.1
+ffmpeg-python>=0.2.0        # requires ffmpeg on PATH
+
+# --- Optional: explainability + head training ---
+shap>=0.46.0
+scikit-learn>=1.5.0

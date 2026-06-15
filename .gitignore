@@ -1,0 +1,72 @@
+# ============================================================
+# PREVAIL .gitignore
+# ============================================================
+
+# --- Claude / assistant artifacts ---
+CLAUDE.md
+.claude/
+
+# --- Python bytecode / caches ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+backend/.venv/
+
+# --- Logs ---
+*.log
+backend/install.log
+backend/*.log
+
+# --- Datasets & large media (downloaded / generated, not for git) ---
+backend/data/
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+_frame_check.png
+
+# --- Model weights ---
+# Large pretrained weights auto-download; the small trained head is kept.
+backend/models/*.pt
+!backend/models/risk_head.pt
+*.onnx
+*.engine
+
+# --- HuggingFace / torch caches (usually outside repo, listed for safety) ---
+.cache/
+huggingface/
+
+# --- Secrets / config ---
+.env
+.env.*
+*.key
+kaggle.json
+
+# --- Node / frontend (when added) ---
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+npm-debug.log*
+yarn-error.log*
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
