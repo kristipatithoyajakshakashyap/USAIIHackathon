@@ -1,5 +1,8 @@
 # PREVAIL — Complete Documentation
 
+> Last updated(Prince Osei Bonsu): June 15, 2026 — 11:00 PM | Security layer added (Audit Logging, Inference Guard, HTTPS)
+
+
 **Predictive Violence & Aggression Escalation Intelligence Layer**
 
 An explainable, mostly-pretrained multimodal pipeline that turns CCTV video (and
