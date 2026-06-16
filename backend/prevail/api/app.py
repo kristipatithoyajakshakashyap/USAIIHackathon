@@ -23,6 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from ..config import Settings, risk_band
 from ..pipeline.engine import PrevailEngine
 from ..pipeline.explain import reasons_text
+from ..security.audit import AuditMiddleware, init_audit_db
+from ..security.inference_guard import InferenceGuardMiddleware
 from .schemas import (AudioEmotionResponse, AudioWindowOut, FrameOut, PersonOut,
                       PredictResponse, RiskOut)
 
@@ -30,6 +32,12 @@ app = FastAPI(title="PREVAIL API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
+app.add_middleware(AuditMiddleware)
+app.add_middleware(InferenceGuardMiddleware)
+
+@app.on_event("startup")
+async def startup():
+    await init_audit_db()
 
 UPLOAD_DIR = Path(tempfile.gettempdir()) / "prevail_uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -58,12 +66,7 @@ async def upload(file: UploadFile = File(...)) -> dict:
 @app.post("/analyze", response_model=PredictResponse)
 async def analyze(file: UploadFile = File(...), scene: bool = False,
                   audio: bool = False) -> PredictResponse:
-    """One-call endpoint for the frontend: upload a video, get the full result.
-
-    Saves the uploaded file server-side, runs the whole pipeline, and returns the
-    risk timeline + peak/mean. Use this when the user picks a file in the browser
-    and wants a single response (no separate /upload then /predict round-trip).
-    """
+    """One-call endpoint for the frontend: upload a video, get the full result."""
     dest = UPLOAD_DIR / file.filename
     with open(dest, "wb") as f:
         f.write(await file.read())
@@ -72,12 +75,7 @@ async def analyze(file: UploadFile = File(...), scene: bool = False,
 
 @app.post("/analyze-audio", response_model=AudioEmotionResponse)
 async def analyze_audio(file: UploadFile = File(...)) -> AudioEmotionResponse:
-    """Audio-only emotion classification: upload audio/video, get the emotion.
-
-    Returns the dominant emotion (angry/calm/fearful/...) plus per-window anger,
-    fear, and intensity. Accepts .wav/.flac/.ogg directly; other formats (mp3,
-    video) are decoded via the bundled ffmpeg.
-    """
+    """Audio-only emotion classification: upload audio/video, get the emotion."""
     import collections
     from ..pipeline.audio_emotion import AudioEmotionTrack
 
@@ -89,7 +87,7 @@ async def analyze_audio(file: UploadFile = File(...)) -> AudioEmotionResponse:
     if str(dest).lower().endswith((".wav", ".flac", ".ogg")):
         track.build_from_wav(str(dest))
     else:
-        track.build(str(dest))      # ffmpeg-decoded (mp3 / video / etc.)
+        track.build(str(dest))
 
     ws = track.windows
     if not ws:
@@ -160,7 +158,7 @@ async def live_risk(ws: WebSocket) -> None:
                 proc_fps=round(out.proc_fps, 1),
             )
             await ws.send_json(payload.model_dump())
-            await asyncio.sleep(0)  # yield to the event loop
+            await asyncio.sleep(0)
     except WebSocketDisconnect:
         return
     finally:
