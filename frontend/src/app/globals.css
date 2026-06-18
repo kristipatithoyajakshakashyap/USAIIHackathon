@@ -1,0 +1,409 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --background: #f0f4fa;
+    --foreground: #0f172a;
+    
+    --card: #ffffff;
+    --card-foreground: #0f172a;
+    
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    
+    --primary: #3b82f6;
+    --primary-foreground: #ffffff;
+    
+    --secondary: #f1f5f9;
+    --secondary-foreground: #0f172a;
+    
+    --muted: #f8fafc;
+    --muted-foreground: #64748b;
+    
+    --accent: #e2e8f0;
+    --accent-foreground: #0f172a;
+    
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
+    
+    --border: #e2e8f0;
+    --input: #e2e8f0;
+    --ring: #3b82f6;
+    
+    --radius: 0.75rem;
+
+    --font-sans: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 76px;
+  }
+
+  .dark {
+    --background: #030712;
+    --foreground: #f8fafc;
+    
+    --card: #070d1a;
+    --card-foreground: #f8fafc;
+    
+    --popover: #070d1a;
+    --popover-foreground: #f8fafc;
+    
+    --primary: #00f0ff;
+    --primary-foreground: #030712;
+    
+    --secondary: #0b1528;
+    --secondary-foreground: #f8fafc;
+    
+    --muted: #0b1528;
+    --muted-foreground: #94a3b8;
+    
+    --accent: #1e293b;
+    --accent-foreground: #f8fafc;
+    
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    
+    --border: #1a2744;
+    --input: #1a2744;
+    --ring: #00f0ff;
+  }
+}
+
+/* ── Base ─────────────────────────────────────────────────────── */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Tactical HUD Grid ────────────────────────────────────────── */
+.hud-grid {
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.dark .hud-grid {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* ── Cyber Glassmorphism ──────────────────────────────────────── */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(226, 232, 240, 0.7);
+}
+
+.dark .glass-panel {
+  background: linear-gradient(
+    135deg,
+    rgba(7, 13, 26, 0.85) 0%,
+    rgba(9, 18, 36, 0.75) 100%
+  );
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid rgba(26, 39, 68, 0.8);
+}
+
+/* ── Neon Glows ───────────────────────────────────────────────── */
+.glow-cyan {
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.2), 0 0 40px rgba(0, 240, 255, 0.06);
+}
+.glow-amber {
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2), 0 0 40px rgba(245, 158, 11, 0.06);
+}
+.glow-red {
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.25), 0 0 40px rgba(220, 38, 38, 0.08);
+}
+.glow-blue {
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25), 0 0 40px rgba(59, 130, 246, 0.08);
+}
+
+/* ── Text Neon Glow ───────────────────────────────────────────── */
+.text-glow-cyan {
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.6), 0 0 20px rgba(0, 240, 255, 0.3);
+}
+.text-glow-red {
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.7), 0 0 20px rgba(239, 68, 68, 0.35);
+}
+
+/* ── Animated Cyber Border ────────────────────────────────────── */
+.cyber-border {
+  position: relative;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+.cyber-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    #00f0ff 0%,
+    #3b82f6 25%,
+    #6366f1 50%,
+    #3b82f6 75%,
+    #00f0ff 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: spin-border 4s linear infinite;
+}
+
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spin-border {
+  to { --angle: 360deg; }
+}
+
+/* ── HUD Corner Brackets ──────────────────────────────────────── */
+.hud-corners {
+  position: relative;
+}
+
+.hud-corners::before,
+.hud-corners::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(0, 240, 255, 0.6);
+  border-style: solid;
+  z-index: 5;
+}
+
+.hud-corners::before {
+  top: 6px;
+  left: 6px;
+  border-width: 2px 0 0 2px;
+  border-radius: 2px 0 0 0;
+}
+
+.hud-corners::after {
+  top: 6px;
+  right: 6px;
+  border-width: 2px 2px 0 0;
+  border-radius: 0 2px 0 0;
+}
+
+.hud-corners-inner {
+  position: relative;
+}
+
+.hud-corners-inner::before,
+.hud-corners-inner::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: rgba(0, 240, 255, 0.6);
+  border-style: solid;
+  z-index: 5;
+}
+
+.hud-corners-inner::before {
+  bottom: 6px;
+  left: 6px;
+  border-width: 0 0 2px 2px;
+  border-radius: 0 0 0 2px;
+}
+
+.hud-corners-inner::after {
+  bottom: 6px;
+  right: 6px;
+  border-width: 0 2px 2px 0;
+  border-radius: 0 0 2px 0;
+}
+
+/* ── Custom Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #1e3a5f;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #2d6099;
+}
+
+/* ── Scanlines Camera Effect ──────────────────────────────────── */
+.scanlines {
+  position: relative;
+  overflow: hidden;
+}
+.scanlines::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: 
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.18) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.015), rgba(0, 0, 255, 0.04));
+  z-index: 2;
+  background-size: 100% 3px, 3px 100%;
+  pointer-events: none;
+  animation: scanline-drift 8s linear infinite;
+}
+
+@keyframes scanline-drift {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 0 100px, 0 0; }
+}
+
+/* ── Shimmer Skeleton ─────────────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(203, 213, 225, 0.2) 0%,
+    rgba(203, 213, 225, 0.5) 50%,
+    rgba(203, 213, 225, 0.2) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+}
+
+.dark .shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(15, 23, 42, 0.5) 0%,
+    rgba(30, 58, 95, 0.6) 50%,
+    rgba(15, 23, 42, 0.5) 100%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ── Live Pulse Dot ───────────────────────────────────────────── */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.live-dot {
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+
+/* ── Critical Red Flash ───────────────────────────────────────── */
+@keyframes pulse-red {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.5; }
+}
+.hud-critical-flash {
+  animation: pulse-red 1.8s infinite;
+}
+
+/* ── Orbit Animation (for risk gauge) ────────────────────────── */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(46px) rotate(0deg); }
+  to   { transform: rotate(360deg) translateX(46px) rotate(-360deg); }
+}
+.orbit-dot {
+  animation: orbit 3s linear infinite;
+}
+
+/* ── Gauge Pulse Ring ─────────────────────────────────────────── */
+@keyframes gauge-breathe {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.04); }
+}
+.gauge-pulse-ring {
+  animation: gauge-breathe 2s ease-in-out infinite;
+}
+
+/* ── Float animation ──────────────────────────────────────────── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* ── Page enter ───────────────────────────────────────────────── */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: page-in 0.35s ease-out forwards;
+}
+
+/* ── Intro: Radar sweep fade trail ────────────────────────────── */
+@keyframes radar-blip {
+  0%   { transform: scale(1);   opacity: 1; }
+  60%  { transform: scale(2.2); opacity: 0.5; }
+  100% { transform: scale(3);   opacity: 0; }
+}
+.radar-blip {
+  animation: radar-blip 1.4s ease-out forwards;
+}
+
+/* ── Intro: skeleton pop ──────────────────────────────────────── */
+@keyframes skel-appear {
+  0%   { opacity: 0; transform: scale(0) translateY(8px); }
+  60%  { opacity: 1; transform: scale(1.1) translateY(-2px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.skel-appear {
+  animation: skel-appear 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+/* ── Intro: glitch text shake ─────────────────────────────────── */
+@keyframes glitch-shake {
+  0%,100% { transform: translate(0); }
+  20%     { transform: translate(-1px, 1px); }
+  40%     { transform: translate(1px, -1px); }
+  60%     { transform: translate(-1px, -1px); }
+  80%     { transform: translate(1px, 1px); }
+}
+.glitch-shake {
+  animation: glitch-shake 0.15s linear;
+}
+
+/* ── Intro: conical gradient sweep (fallback) ─────────────────── */
+@keyframes sweep-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.sweep-arm {
+  transform-origin: left center;
+  animation: sweep-rotate 4s linear infinite;
+}
