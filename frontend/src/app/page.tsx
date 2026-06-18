@@ -1,0 +1,543 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useLiveRisk } from "@/hooks/useLiveRisk";
+import { Header } from "@/components/header";
+import { RiskGauge } from "@/components/risk-gauge";
+import { WalkthroughModal } from "@/components/walkthrough-modal";
+import { motion } from "framer-motion";
+import {
+  Video,
+  AlertOctagon,
+  Users,
+  TrendingUp,
+  FileSpreadsheet,
+  ArrowUpRight,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
+import Link from "next/link";
+import { useTheme } from "next-themes";
+
+// ── Stagger container ──────────────────────────────────────────────
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07 } },
+} as const;
+const fadeUp = {
+  hidden: { opacity: 0, y: 18 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" as const } },
+};
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: { value?: number }[];
+  label?: string;
+}
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
+  if (active && payload?.length) {
+    const val = payload[0]?.value ?? 0;
+    const color =
+      val >= 80 ? "#ef4444" : val >= 60 ? "#f97316" : val >= 40 ? "#f59e0b" : "#00f0ff";
+    return (
+      <div className="px-3 py-2 rounded-xl border border-slate-800 bg-slate-950/95 backdrop-blur-md shadow-xl">
+        <p className="text-[10px] text-slate-400 font-mono mb-1">{label}</p>
+        <p className="text-sm font-extrabold font-mono" style={{ color }}>
+          {val} <span className="text-[10px] text-slate-500 font-normal">/ 100</span>
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export default function DashboardPage() {
+  const router = useRouter();
+  const { data: liveData, history, isSimulated } = useLiveRisk("CAM-01");
+  const { theme } = useTheme();
+  const gridStroke = theme === "dark" ? "#0f1d35" : "#e2e8f0";
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [reportGenerating, setReportGenerating] = useState(false);
+  const [successReport, setSuccessReport] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // First-visit: redirect to intro splash
+  useEffect(() => {
+    const seen = sessionStorage.getItem("prevail_intro_seen");
+    if (!seen) {
+      router.replace("/intro");
+    }
+  }, [router]);
+
+  const score = liveData?.risk.score ?? 20;
+  const band = liveData?.risk.band ?? "SAFE";
+
+  const metrics = [
+    {
+      title: "Active Cameras",
+      value: "4 / 4",
+      sub: "All feeds operational",
+      icon: Video,
+      color: "text-cyan-500",
+      bg: "bg-cyan-500/8 border-cyan-500/15",
+      trend: "+0%",
+      trendUp: true,
+    },
+    {
+      title: "Current Alerts",
+      value: band === "CRITICAL" || band === "HIGH" ? "3 Active" : "2 Active",
+      sub: "1 unresolved escalation",
+      icon: AlertOctagon,
+      color: "text-red-500",
+      bg: "bg-red-500/8 border-red-500/15",
+      trend: "+1",
+      trendUp: false,
+    },
+    {
+      title: "Avg Risk Score",
+      value: "32.4",
+      sub: "Normal threshold",
+      icon: TrendingUp,
+      color: "text-blue-500",
+      bg: "bg-blue-500/8 border-blue-500/15",
+      trend: "-4.2%",
+      trendUp: true,
+    },
+    {
+      title: "People Detected",
+      value: liveData ? `${liveData.persons.length}` : "4",
+      sub: "Across all zones",
+      icon: Users,
+      color: "text-amber-500",
+      bg: "bg-amber-500/8 border-amber-500/15",
+      trend: "+2",
+      trendUp: false,
+    },
+  ];
+
+  const staticCameras = [
+    { id: "CAM-02", name: "South Gate", score: 14, band: "SAFE" as const },
+    { id: "CAM-03", name: "Parking Lot C", score: 28, band: "LOW" as const },
+    { id: "CAM-04", name: "Hallway B", score: 48, band: "MODERATE" as const },
+  ];
+
+  const recentIncidents = [
+    { id: "INC-9482", title: "Verbal dispute near Gate A", cam: "CAM-02", time: "18:32:04", risk: "HIGH", status: "Closed" },
+    { id: "INC-9481", title: "Crowd crowding in Corridor 3", cam: "CAM-04", time: "18:15:30", risk: "MODERATE", status: "Closed" },
+    { id: "INC-9480", title: "Aggressive posture alert", cam: "CAM-01", time: "17:44:12", risk: "HIGH", status: "Logged" },
+  ];
+
+  const handleGenerateReport = () => {
+    setReportGenerating(true);
+    setTimeout(() => {
+      setReportGenerating(false);
+      setSuccessReport(true);
+      setTimeout(() => setSuccessReport(false), 3000);
+    }, 1500);
+  };
+
+  const riskBandColor = (b: string) =>
+    b === "CRITICAL" ? "#ef4444" : b === "HIGH" ? "#f97316" : b === "MODERATE" ? "#f59e0b" : b === "LOW" ? "#60a5fa" : "#00f0ff";
+
+  const camBandClass = (b: string) =>
+    b === "MODERATE"
+      ? "border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/5"
+      : b === "LOW"
+      ? "border-blue-500/25 bg-blue-500/5 dark:bg-blue-500/5"
+      : "border-slate-200 dark:border-slate-800/60 bg-white dark:bg-slate-900/10";
+
+  return (
+    <div className="flex-1 flex flex-col min-h-screen hud-grid page-enter">
+      <Header title="Tactical Security Console" onOpenWalkthrough={() => setShowWalkthrough(true)} />
+      <WalkthroughModal isOpen={showWalkthrough} onClose={() => setShowWalkthrough(false)} forceOpen={showWalkthrough} />
+
+      <main className="flex-1 p-5 space-y-5 max-w-[1440px] mx-auto w-full">
+
+        {/* Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="p-4 rounded-2xl border border-cyan-500/12 bg-gradient-to-r from-cyan-500/5 via-blue-500/4 to-indigo-500/5 flex flex-col md:flex-row md:items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-500">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
+              <span className="font-extrabold text-cyan-600 dark:text-cyan-400">PREVAIL · </span>
+              Transforms surveillance into proactive, explainable, multimodal violence escalation
+              intelligence — combining computer vision, behavioral analysis, and GenAI decision support.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowWalkthrough(true)}
+            className="flex-shrink-0 text-[11px] font-bold text-cyan-500 hover:text-cyan-400 underline decoration-dotted underline-offset-4 cursor-pointer whitespace-nowrap"
+          >
+            Review Architecture →
+          </button>
+        </motion.div>
+
+        {/* Hero Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Risk Gauge Card */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.97 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className="lg:col-span-1 glass-panel rounded-2xl p-6 flex flex-col items-center justify-center border shadow-sm relative overflow-hidden"
+          >
+            <div className="absolute top-3 left-4 font-mono text-[9px] text-slate-400 uppercase tracking-widest">
+              Aggregated Threat Score
+            </div>
+            <div className="absolute top-3 right-4 flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 rounded-full bg-red-500 live-dot" />
+              <span className="font-mono text-[9px] text-red-400">LIVE</span>
+            </div>
+
+            <RiskGauge score={score} band={band} />
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-[200px] leading-relaxed text-center mt-3">
+              Multimodal fusion (Vision, Speech, Movement) estimating:{" "}
+              <strong className="text-slate-800 dark:text-slate-200">{band} risk</strong>.
+            </p>
+          </motion.div>
+
+          {/* Live Camera Feed */}
+          <motion.div
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.45, delay: 0.1 }}
+            className="lg:col-span-2 glass-panel rounded-2xl p-5 border shadow-sm flex flex-col"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-900/80 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="relative flex">
+                  <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-red-500 opacity-60" />
+                  <span className="relative w-2.5 h-2.5 rounded-full bg-red-500" />
+                </span>
+                <span className="font-bold text-sm tracking-wide">LIVE STREAM — CAM-01 (LOBBY A)</span>
+              </div>
+              <span className="font-mono text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-md">
+                {isSimulated ? "SIM MODE" : "WS ACTIVE"}
+              </span>
+            </div>
+
+            {/* Camera canvas */}
+            <div className="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden scanlines border border-slate-900 hud-corners">
+              <div className="hud-corners-inner absolute inset-0">
+                {/* HUD corner decorations rendered via CSS */}
+              </div>
+
+              <div className="absolute inset-0 flex items-center justify-center text-slate-700 pointer-events-none select-none">
+                <span className="text-[11px] font-mono tracking-widest opacity-20">CCTV · SECURITY CAP</span>
+              </div>
+
+              {/* Person bounding boxes */}
+              {liveData?.persons.map((person) => {
+                const [bx, by, bw, bh] = person.bbox;
+                const left = `${(bx / 640) * 100}%`;
+                const top = `${(by / 480) * 100}%`;
+                const width = `${(bw / 640) * 100}%`;
+                const height = `${(bh / 480) * 100}%`;
+                const isAggressive = score > 60 && (person.track_id === 1 || person.track_id === 2);
+                const boxColor = isAggressive ? "#dc2626" : "#00f0ff";
+
+                return (
+                  <div
+                    key={person.track_id}
+                    className="absolute border-2 transition-all duration-200"
+                    style={{ left, top, width, height, borderColor: boxColor, boxShadow: `0 0 10px ${boxColor}40` }}
+                  >
+                    <div className={`absolute -top-5 left-0 px-1.5 py-0.5 text-[8px] font-mono font-bold text-white rounded-t-sm flex items-center gap-1 ${isAggressive ? "bg-red-600" : "bg-cyan-600"}`}>
+                      <span>ID:{person.track_id}</span>
+                      <span>{(person.conf * 100).toFixed(0)}%</span>
+                    </div>
+                    {person.pose?.map((pt, ptIdx) => {
+                      const px = `${((pt[0] - bx) / bw) * 100}%`;
+                      const py = `${((pt[1] - by) / bh) * 100}%`;
+                      return (
+                        <div
+                          key={ptIdx}
+                          className={`absolute w-1.5 h-1.5 rounded-full -translate-x-1/2 -translate-y-1/2 ${isAggressive ? "bg-red-400" : "bg-cyan-400"}`}
+                          style={{ left: px, top: py }}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })}
+
+              {/* HUD overlay — top right */}
+              <div className="absolute top-3 right-3 bg-slate-900/85 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-800 text-[10px] font-mono text-cyan-400 flex items-center gap-2.5">
+                <span>FPS: {liveData?.proc_fps.toFixed(1) ?? "12.4"}</span>
+                <span className="text-slate-600">|</span>
+                <span className={score >= 60 ? "text-orange-400" : "text-cyan-400"}>
+                  RISK: {score}
+                </span>
+              </div>
+
+              {/* Bottom left timestamp */}
+              <div className="absolute bottom-3 left-3 bg-slate-900/70 px-2 py-1 rounded-md border border-slate-800 text-[9px] font-mono text-slate-400">
+                {mounted ? new Date().toLocaleTimeString("en-US", { hour12: false }) : "--:--:--"} UTC
+              </div>
+
+              {/* Critical flash overlay */}
+              {(band === "CRITICAL" || band === "HIGH") && (
+                <div className="absolute inset-0 border-2 border-red-500/30 hud-critical-flash rounded-xl pointer-events-none" />
+              )}
+            </div>
+
+            <div className="flex justify-between items-center mt-3">
+              <p className="text-[11px] font-mono text-slate-400">
+                TRACE: {liveData?.persons.length ?? 0} targets · YOLO11s + ByteTrack
+              </p>
+              <Link href="/live" className="text-xs font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1 cursor-pointer transition-colors">
+                <span>Full Viewport</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Metrics Grid */}
+        <motion.div
+          variants={container}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        >
+          {metrics.map((m) => {
+            const Icon = m.icon;
+            return (
+              <motion.div
+                variants={fadeUp}
+                whileHover={{ y: -5, scale: 1.01 }}
+                key={m.title}
+                className={`glass-panel border rounded-2xl p-5 flex flex-col gap-3 cursor-default ${m.bg} transition-all duration-200`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className={`p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm ${m.color}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${m.trendUp ? "text-emerald-500 bg-emerald-500/10" : "text-red-400 bg-red-500/10"}`}>
+                    {m.trend}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                    {m.title}
+                  </span>
+                  <span className="text-2xl font-black tracking-tight mt-0.5 block">
+                    {m.value}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">{m.sub}</span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+
+        {/* Chart + Camera List */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Trend Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.4 }}
+            className="lg:col-span-2 glass-panel rounded-2xl p-5 border shadow-sm"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-900/80 mb-4">
+              <span className="font-bold text-sm tracking-wide">AGGRESSION RISK — TIMELINE</span>
+              <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-500">
+                <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 live-dot" />
+                REALTIME
+              </div>
+            </div>
+
+            <div className="h-60 w-full">
+              {history.length === 0 ? (
+                <div className="w-full h-full flex items-center justify-center text-slate-500 font-mono text-xs">
+                  Awaiting signal telemetry...
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={history} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="riskGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00f0ff" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="#00f0ff" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} opacity={0.5} />
+                    <XAxis dataKey="time" stroke="#475569" fontSize={9} className="font-mono" tickLine={false} />
+                    <YAxis domain={[0, 100]} stroke="#475569" fontSize={9} className="font-mono" tickLine={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="score"
+                      stroke="#00f0ff"
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#riskGrad)"
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Camera Feed List */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.4 }}
+            className="lg:col-span-1 glass-panel rounded-2xl p-5 border shadow-sm"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-900/80 mb-4">
+              <span className="font-bold text-sm tracking-wide">CCTV FEEDS</span>
+              <span className="text-[10px] font-mono font-bold text-emerald-500 flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 live-dot" />
+                ONLINE
+              </span>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* CAM-01 — live driven */}
+              <div className="p-3 rounded-xl border border-cyan-500/25 bg-cyan-500/6 flex items-center justify-between group hover:border-cyan-500/40 transition-colors">
+                <div>
+                  <span className="text-xs font-bold text-slate-800 dark:text-white block">CAM-01 · Lobby A</span>
+                  <span className="text-[9px] text-cyan-500 font-mono flex items-center gap-1 mt-0.5">
+                    <div className="w-1 h-1 rounded-full bg-red-500 live-dot" />
+                    LIVE
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg font-extrabold" style={{ color: riskBandColor(band) }}>{score}</span>
+                  <span className="block text-[9px] text-slate-400 uppercase font-mono">{band}</span>
+                </div>
+              </div>
+
+              {staticCameras.map((cam) => (
+                <div
+                  key={cam.id}
+                  className={`p-3 rounded-xl border flex items-center justify-between hover:border-opacity-60 transition-colors ${camBandClass(cam.band)}`}
+                >
+                  <div>
+                    <span className="text-xs font-semibold block">{cam.id} · {cam.name}</span>
+                    <span className="text-[9px] text-slate-400 font-mono mt-0.5">FEED RUNNING</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-extrabold" style={{ color: riskBandColor(cam.band) }}>{cam.score}</span>
+                    <span className="block text-[9px] text-slate-400 uppercase font-mono">{cam.band}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Incidents Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.4 }}
+          className="glass-panel rounded-2xl border shadow-sm overflow-hidden"
+        >
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-900/80">
+            <span className="font-bold text-sm tracking-wide">RECENT LOGGED INCIDENTS</span>
+            <Link href="/explorer" className="text-xs font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1 transition-colors">
+              <span>Incident Center</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-slate-100 dark:border-slate-900 text-slate-400 text-[10px] font-mono uppercase tracking-wider bg-slate-50/50 dark:bg-slate-900/20">
+                  <th className="py-3 px-5">ID</th>
+                  <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4">Camera</th>
+                  <th className="py-3 px-4">Timestamp</th>
+                  <th className="py-3 px-4">Peak Risk</th>
+                  <th className="py-3 px-4 text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentIncidents.map((inc, i) => (
+                  <motion.tr
+                    key={inc.id}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.35 + i * 0.06 }}
+                    className="border-b border-slate-100 dark:border-slate-900/60 text-xs hover:bg-slate-50 dark:hover:bg-slate-900/30 transition-colors group"
+                  >
+                    <td className="py-3.5 px-5 font-mono font-bold text-slate-400">{inc.id}</td>
+                    <td className="py-3.5 px-4 font-semibold">{inc.title}</td>
+                    <td className="py-3.5 px-4 font-mono text-cyan-500">{inc.cam}</td>
+                    <td className="py-3.5 px-4 font-mono text-slate-400">{inc.time}</td>
+                    <td className="py-3.5 px-4">
+                      <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
+                        inc.risk === "HIGH"
+                          ? "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                          : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                      }`}>
+                        {inc.risk}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
+                        inc.status === "Logged" ? "text-cyan-400" : "text-slate-400"
+                      }`}>
+                        {inc.status === "Closed" && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                        {inc.status}
+                      </span>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.div>
+      </main>
+
+      {/* Floating AI Report Button */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <motion.button
+          onClick={handleGenerateReport}
+          disabled={reportGenerating}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.95 }}
+          className="relative group flex items-center gap-2.5 pl-4 pr-5 py-3 rounded-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white font-bold shadow-lg shadow-cyan-500/20 disabled:opacity-50 cursor-pointer transition-shadow"
+        >
+          {reportGenerating ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : successReport ? (
+            <CheckCircle2 className="w-4 h-4" />
+          ) : (
+            <FileSpreadsheet className="w-4 h-4" />
+          )}
+          <span className="text-xs font-extrabold tracking-wide">
+            {successReport ? "Generated!" : reportGenerating ? "Compiling…" : "Quick AI Report"}
+          </span>
+        </motion.button>
+      </div>
+    </div>
+  );
+}
