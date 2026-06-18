@@ -173,11 +173,11 @@ function CCTVFeed({ id, active }: { id: number; active: boolean }) {
       <div className="absolute inset-0 scanlines opacity-60 pointer-events-none z-10" />
       <div className="hud-corners absolute inset-2 z-20 pointer-events-none" />
       <div className="hud-corners-inner absolute inset-2 z-20 pointer-events-none" />
-      <div className="absolute top-2 left-3 z-20 flex items-center gap-1.5">
+      <div className="absolute top-2 left-3 z-20 flex items-center gap-1.5 pointer-events-none">
         <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-red-500 live-dot" : "bg-slate-600"}`} />
         <span className="font-mono text-[9px] text-slate-400">CAM-{String(id).padStart(2, "0")}</span>
       </div>
-      <svg className="absolute inset-0 w-full h-full opacity-10" viewBox="0 0 100 60">
+      <svg className="absolute inset-0 w-full h-full opacity-10 pointer-events-none" viewBox="0 0 100 60">
         <line x1="33" y1="0" x2="33" y2="60" stroke="#00f0ff" strokeWidth="0.3" />
         <line x1="66" y1="0" x2="66" y2="60" stroke="#00f0ff" strokeWidth="0.3" />
         <line x1="0" y1="20" x2="100" y2="20" stroke="#00f0ff" strokeWidth="0.3" />
@@ -282,7 +282,7 @@ export default function IntroPage() {
   ];
 
   return (
-    <div className="fixed inset-0 bg-[#030712] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-[#030712] overflow-y-auto overflow-x-hidden flex flex-col z-[100]">
 
       {/* Background */}
       <div className="absolute inset-0 hud-grid opacity-60 pointer-events-none" />
@@ -322,8 +322,8 @@ export default function IntroPage() {
       </motion.div>
 
       {/* Main content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-3 relative z-10 overflow-hidden">
-        <div className="w-full max-w-7xl grid grid-cols-1 xl:grid-cols-[1fr_480px_1fr] gap-8 items-center">
+      <div className="flex-1 flex items-center justify-center px-4 py-8 relative z-10">
+        <div className="w-full max-w-7xl grid grid-cols-1 xl:grid-cols-[1fr_480px_1fr] gap-8 items-center my-8">
 
           {/* ── LEFT ── */}
           <motion.div
@@ -437,7 +437,7 @@ export default function IntroPage() {
                 onClick={handleEnter}
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="group relative flex items-center gap-3 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide overflow-hidden cursor-pointer"
+                className="group relative flex items-center gap-3 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide overflow-hidden cursor-pointer z-50"
                 style={{
                   background: "linear-gradient(135deg,rgba(0,240,255,0.15),rgba(99,102,241,0.15))",
                   border: "1px solid rgba(0,240,255,0.4)",

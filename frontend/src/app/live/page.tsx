@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useLiveRisk } from "@/hooks/useLiveRisk";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useLiveRisk, InputSource } from "@/hooks/useLiveRisk";
 import { Header } from "@/components/header";
 import { motion } from "framer-motion";
 import {
@@ -12,15 +12,60 @@ import {
   Accessibility,
   Footprints,
   Compass,
-  Layout
+  Layout,
+  Upload,
+  Loader2,
+  AlertCircle,
+  Camera,
+  MonitorPlay,
+  MonitorOff,
+  WifiOff,
+  Radio,
+  Siren,
+  CircleDot,
+  Network,
 } from "lucide-react";
 
 export default function LivePage() {
-  const { data: liveData } = useLiveRisk("CAM-01");
+  const {
+    data: liveData,
+    isUploading,
+    uploadError,
+    videoObjectUrl,
+    uploadVideo,
+    isSimulated,
+    inputSource,
+    setInputSource,
+    webcamStream,
+    webcamError,
+    isStartingWebcam,
+    startLiveCamera,
+    stopLiveCamera,
+  } = useLiveRisk("CAM-01");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const webcamVideoRef = useRef<HTMLVideoElement>(null);
   const [showBboxes, setShowBboxes] = useState(true);
   const [showPoses, setShowPoses] = useState(true);
   const [showTrajectories, setShowTrajectories] = useState(true);
   const [activeCamera, setActiveCamera] = useState("CAM-01");
+
+  // Attach the MediaStream to the webcam <video> element whenever it changes
+  useEffect(() => {
+    if (webcamVideoRef.current) {
+      webcamVideoRef.current.srcObject = webcamStream ?? null;
+    }
+  }, [webcamStream]);
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      uploadVideo(file);
+      e.target.value = "";
+    },
+    [uploadVideo]
+  );
 
   const score = liveData?.risk.score ?? 20;
   const band = liveData?.risk.band ?? "SAFE";
@@ -156,13 +201,200 @@ export default function LivePage() {
           {/* Interactive video feed with HUD overlays */}
           <div className="lg:col-span-3 flex flex-col space-y-6">
             <div className="glass-panel border rounded-2xl p-4 shadow-sm relative overflow-hidden">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-900 mb-3">
-                <span className="font-bold text-xs tracking-wider uppercase">SURVEILLANCE NODE: {activeCamera}</span>
-                <span className="text-[10px] font-mono text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-md">1080p | 12.4 FPS</span>
+              {/* ── Card header ── */}
+              <div className="pb-3 border-b border-slate-100 dark:border-slate-900 mb-3 space-y-3">
+
+                {/* Title + badge row */}
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs tracking-wider uppercase">SURVEILLANCE NODE: {activeCamera}</span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${
+                    inputSource === InputSource.LIVE_CAMERA && webcamStream
+                      ? "text-cyan-500 bg-cyan-500/10 border-cyan-500/20"
+                      : inputSource === InputSource.DEMO_VIDEO && !isSimulated
+                      ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+                      : inputSource === InputSource.LIVE_CAMERA
+                      ? "text-amber-500 bg-amber-500/10 border-amber-500/20"
+                      : "text-slate-400 bg-slate-100 dark:bg-slate-900 border-transparent"
+                  }`}>
+                    {inputSource === InputSource.LIVE_CAMERA && webcamStream
+                      ? "PREVIEW MODE"
+                      : inputSource === InputSource.DEMO_VIDEO && !isSimulated
+                      ? "LIVE INFERENCE" : "SIMULATION ENGINE"} | {liveData?.proc_fps.toFixed(1) ?? "12.4"} FPS
+                  </span>
+                </div>
+
+                {/* Input Source selector */}
+                <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-lg w-fit">
+                  <button
+                    onClick={() => setInputSource(InputSource.DEMO_VIDEO)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold font-mono transition-colors cursor-pointer ${
+                      inputSource === InputSource.DEMO_VIDEO
+                        ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm"
+                        : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    }`}
+                  >
+                    <MonitorPlay className="w-3 h-3" />
+                    Demo Analysis
+                  </button>
+                  <button
+                    onClick={() => setInputSource(InputSource.LIVE_CAMERA)}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold font-mono transition-colors cursor-pointer ${
+                      inputSource === InputSource.LIVE_CAMERA
+                        ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm"
+                        : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    }`}
+                  >
+                    <Camera className="w-3 h-3" />
+                    Live Surveillance
+                  </button>
+                  <button
+                    disabled
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold font-mono text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                    title="RTSP CCTV Integration — Architecture Ready"
+                  >
+                    <Network className="w-3 h-3" />
+                    CCTV Network
+                    <span className="ml-1 text-[8px] font-mono text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 px-1 rounded">SOON</span>
+                  </button>
+                </div>
+
+                {/* Demo Analysis action area */}
+                {inputSource === InputSource.DEMO_VIDEO && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                      disabled={isUploading}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-500 hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] font-bold font-mono cursor-pointer"
+                    >
+                      {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                      {isUploading ? "Loading Feed…" : "Run Demo Analysis"}
+                    </button>
+                    <span className="text-[10px] text-slate-400 font-mono">Upload a recorded video to run AI inference</span>
+                  </div>
+                )}
+
+                {/* Live Surveillance Preview action area */}
+                {inputSource === InputSource.LIVE_CAMERA && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      {webcamStream ? (
+                        <button
+                          onClick={stopLiveCamera}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-[10px] font-bold font-mono cursor-pointer"
+                        >
+                          <MonitorOff className="w-3 h-3" />
+                          Stop Monitoring Preview
+                        </button>
+                      ) : (
+                        <button
+                          onClick={startLiveCamera}
+                          disabled={isStartingWebcam}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-500 hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] font-bold font-mono cursor-pointer"
+                        >
+                          {isStartingWebcam ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                          {isStartingWebcam ? "Connecting…" : "Start Monitoring Preview"}
+                        </button>
+                      )}
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {webcamStream ? "Camera active" : "Activates device camera for SOC preview"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <CircleDot className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" />
+                      <span className="text-[9px] font-mono text-amber-500/80">
+                        PREVIEW MODE &nbsp;&middot;&nbsp; Simulation Risk Engine Active &nbsp;&middot;&nbsp; No real-time camera inference
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Viewport */}
               <div className="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden scanlines border border-slate-900">
+
+                {/* ── Video layer: Demo mode ── */}
+                {inputSource === InputSource.DEMO_VIDEO && videoObjectUrl && (
+                  <video
+                    key={videoObjectUrl}
+                    src={videoObjectUrl}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                )}
+
+                {/* ── Video layer: Webcam mode ── */}
+                {inputSource === InputSource.LIVE_CAMERA && (
+                  <video
+                    ref={webcamVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                      webcamStream ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                )}
+
+                {/* ── Idle placeholder ── */}
+                {(inputSource === InputSource.DEMO_VIDEO && !videoObjectUrl && !isUploading) ||
+                 (inputSource === InputSource.LIVE_CAMERA && !webcamStream && !isStartingWebcam && !webcamError) ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 pointer-events-none select-none gap-2">
+                    {inputSource === InputSource.DEMO_VIDEO ? (
+                      <>
+                        <MonitorPlay className="w-10 h-10 opacity-15" />
+                        <span className="text-[10px] font-mono tracking-widest opacity-20">UPLOAD A VIDEO TO BEGIN ANALYSIS</span>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-10 h-10 opacity-15" />
+                        <span className="text-[10px] font-mono tracking-widest opacity-20">PRESS START LIVE MONITORING</span>
+                      </>
+                    )}
+                  </div>
+                ) : null}
+
+                {/* Upload in-progress overlay */}
+                {isUploading && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-10">
+                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                    <span className="text-[11px] font-mono text-cyan-400 tracking-widest">UPLOADING FEED…</span>
+                  </div>
+                )}
+
+                {/* Webcam starting overlay */}
+                {isStartingWebcam && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-10">
+                    <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                    <span className="text-[11px] font-mono text-cyan-400 tracking-widest">CONNECTING CAMERA…</span>
+                  </div>
+                )}
+
+                {/* Upload error */}
+                {uploadError && !isUploading && (
+                  <div className="absolute bottom-10 left-3 right-3 flex items-start gap-2 bg-red-950/90 border border-red-500/40 rounded-lg px-3 py-2 z-10">
+                    <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-[10px] font-mono text-red-300 leading-snug">{uploadError}</span>
+                  </div>
+                )}
+
+                {/* Webcam error */}
+                {webcamError && !isStartingWebcam && (
+                  <div className="absolute bottom-10 left-3 right-3 flex items-start gap-2 bg-red-950/90 border border-red-500/40 rounded-lg px-3 py-2 z-10">
+                    <WifiOff className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                    <span className="text-[10px] font-mono text-red-300 leading-snug">{webcamError}</span>
+                  </div>
+                )}
                 
                 {/* HUD Grid markings */}
                 <div className="absolute top-4 left-4 text-white/40 text-[9px] font-mono select-none">

@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useLiveRisk } from "@/hooks/useLiveRisk";
+import { useLiveRisk, InputSource } from "@/hooks/useLiveRisk";
 import { Header } from "@/components/header";
 import { RiskGauge } from "@/components/risk-gauge";
 import { WalkthroughModal } from "@/components/walkthrough-modal";
@@ -16,6 +16,17 @@ import {
   ArrowUpRight,
   ShieldCheck,
   CheckCircle2,
+  Upload,
+  Loader2,
+  AlertCircle,
+  Camera,
+  MonitorPlay,
+  MonitorOff,
+  WifiOff,
+  Radio,
+  Siren,
+  CircleDot,
+  Network,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -63,7 +74,42 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data: liveData, history, isSimulated } = useLiveRisk("CAM-01");
+  const {
+    data: liveData,
+    history,
+    isSimulated,
+    isUploading,
+    uploadError,
+    videoObjectUrl,
+    uploadVideo,
+    inputSource,
+    setInputSource,
+    webcamStream,
+    webcamError,
+    isStartingWebcam,
+    startLiveCamera,
+    stopLiveCamera,
+  } = useLiveRisk("CAM-01");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const webcamVideoRef = useRef<HTMLVideoElement>(null);
+
+  // Attach the MediaStream to the <video> element whenever it changes
+  useEffect(() => {
+    if (webcamVideoRef.current) {
+      webcamVideoRef.current.srcObject = webcamStream ?? null;
+    }
+  }, [webcamStream]);
+
+  const handleFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      uploadVideo(file);
+      e.target.value = "";
+    },
+    [uploadVideo]
+  );
   const { theme } = useTheme();
   const gridStroke = theme === "dark" ? "#0f1d35" : "#e2e8f0";
   const [showWalkthrough, setShowWalkthrough] = useState(false);
@@ -88,7 +134,7 @@ export default function DashboardPage() {
 
   const metrics = [
     {
-      title: "Active Cameras",
+      title: "Surveillance Nodes",
       value: "4 / 4",
       sub: "All feeds operational",
       icon: Video,
@@ -98,7 +144,7 @@ export default function DashboardPage() {
       trendUp: true,
     },
     {
-      title: "Current Alerts",
+      title: "Incident Alerts",
       value: band === "CRITICAL" || band === "HIGH" ? "3 Active" : "2 Active",
       sub: "1 unresolved escalation",
       icon: AlertOctagon,
@@ -110,7 +156,7 @@ export default function DashboardPage() {
     {
       title: "Avg Risk Score",
       value: "32.4",
-      sub: "Normal threshold",
+      sub: "Within safe threshold",
       icon: TrendingUp,
       color: "text-blue-500",
       bg: "bg-blue-500/8 border-blue-500/15",
@@ -118,9 +164,9 @@ export default function DashboardPage() {
       trendUp: true,
     },
     {
-      title: "People Detected",
+      title: "Persons Tracked",
       value: liveData ? `${liveData.persons.length}` : "4",
-      sub: "Across all zones",
+      sub: "Across monitored zones",
       icon: Users,
       color: "text-amber-500",
       bg: "bg-amber-500/8 border-amber-500/15",
@@ -136,9 +182,9 @@ export default function DashboardPage() {
   ];
 
   const recentIncidents = [
-    { id: "INC-9482", title: "Verbal dispute near Gate A", cam: "CAM-02", time: "18:32:04", risk: "HIGH", status: "Closed" },
-    { id: "INC-9481", title: "Crowd crowding in Corridor 3", cam: "CAM-04", time: "18:15:30", risk: "MODERATE", status: "Closed" },
-    { id: "INC-9480", title: "Aggressive posture alert", cam: "CAM-01", time: "17:44:12", risk: "HIGH", status: "Logged" },
+    { id: "INC-9482", title: "Aggressive crowd convergence near Gate A", cam: "CAM-02", time: "18:32:04", risk: "HIGH", status: "Closed" },
+    { id: "INC-9481", title: "Rapid movement cluster in Corridor 3", cam: "CAM-04", time: "18:15:30", risk: "MODERATE", status: "Closed" },
+    { id: "INC-9480", title: "Escalated posture — early warning issued", cam: "CAM-01", time: "17:44:12", risk: "HIGH", status: "Logged" },
   ];
 
   const handleGenerateReport = () => {
@@ -161,35 +207,44 @@ export default function DashboardPage() {
       : "border-slate-200 dark:border-slate-800/60 bg-white dark:bg-slate-900/10";
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen hud-grid page-enter">
-      <Header title="Tactical Security Console" onOpenWalkthrough={() => setShowWalkthrough(true)} />
+    <>
       <WalkthroughModal isOpen={showWalkthrough} onClose={() => setShowWalkthrough(false)} forceOpen={showWalkthrough} />
+      <div className="flex-1 flex flex-col min-h-screen hud-grid page-enter">
+        <Header title="Tactical Security Console" onOpenWalkthrough={() => setShowWalkthrough(true)} />
 
       <main className="flex-1 p-5 space-y-5 max-w-[1440px] mx-auto w-full">
 
-        {/* Banner */}
+        {/* Platform Mission Banner */}
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="p-4 rounded-2xl border border-cyan-500/12 bg-gradient-to-r from-cyan-500/5 via-blue-500/4 to-indigo-500/5 flex flex-col md:flex-row md:items-center justify-between gap-3"
+          className="p-4 rounded-2xl border border-cyan-500/12 bg-gradient-to-r from-cyan-500/5 via-blue-500/4 to-indigo-500/5"
         >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-500">
-              <ShieldCheck className="w-4 h-4" />
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-cyan-500/10 rounded-xl text-cyan-500 flex-shrink-0 mt-0.5">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-xs font-extrabold text-cyan-600 dark:text-cyan-400 tracking-wide">
+                  PREVAIL &mdash; AI Decision Support Platform for Human Safety
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl">
+                  Continuously monitors surveillance feeds &middot; Estimates aggression escalation risk &middot; Explains contributing factors &middot; Generates proactive early warnings for security operators.
+                </p>
+                <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 pt-0.5">
+                  Decision Support Only &nbsp;&middot;&nbsp; No Automated Enforcement &nbsp;&middot;&nbsp; Human Remains in Control
+                </p>
+              </div>
             </div>
-            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 leading-relaxed">
-              <span className="font-extrabold text-cyan-600 dark:text-cyan-400">PREVAIL · </span>
-              Transforms surveillance into proactive, explainable, multimodal violence escalation
-              intelligence — combining computer vision, behavioral analysis, and GenAI decision support.
-            </p>
+            <button
+              onClick={() => setShowWalkthrough(true)}
+              className="flex-shrink-0 text-[11px] font-bold text-cyan-500 hover:text-cyan-400 underline decoration-dotted underline-offset-4 cursor-pointer whitespace-nowrap self-start"
+            >
+              How It Works &rarr;
+            </button>
           </div>
-          <button
-            onClick={() => setShowWalkthrough(true)}
-            className="flex-shrink-0 text-[11px] font-bold text-cyan-500 hover:text-cyan-400 underline decoration-dotted underline-offset-4 cursor-pointer whitespace-nowrap"
-          >
-            Review Architecture →
-          </button>
         </motion.div>
 
         {/* Hero Section */}
@@ -199,22 +254,47 @@ export default function DashboardPage() {
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="lg:col-span-1 glass-panel rounded-2xl p-6 flex flex-col items-center justify-center border shadow-sm relative overflow-hidden"
+            className="lg:col-span-1 glass-panel rounded-2xl p-6 flex flex-col items-center border shadow-sm relative overflow-hidden"
           >
-            <div className="absolute top-3 left-4 font-mono text-[9px] text-slate-400 uppercase tracking-widest">
-              Aggregated Threat Score
-            </div>
-            <div className="absolute top-3 right-4 flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-red-500 live-dot" />
-              <span className="font-mono text-[9px] text-red-400">LIVE</span>
+            <div className="w-full flex items-center justify-between mb-4">
+              <div>
+                <p className="font-mono text-[9px] text-slate-400 uppercase tracking-widest">Escalation Risk Score</p>
+                <p className="font-bold text-[11px] text-slate-700 dark:text-slate-300 mt-0.5">CAM-01 &middot; Lobby A</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-500 live-dot" />
+                <span className="font-mono text-[9px] text-red-400">MONITORING</span>
+              </div>
             </div>
 
             <RiskGauge score={score} band={band} />
 
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-[200px] leading-relaxed text-center mt-3">
-              Multimodal fusion (Vision, Speech, Movement) estimating:{" "}
-              <strong className="text-slate-800 dark:text-slate-200">{band} risk</strong>.
-            </p>
+            {/* Recommended Action — the key decision support element */}
+            <div className={`w-full mt-4 rounded-xl border p-3 ${
+              band === "CRITICAL" ? "border-red-500/30 bg-red-500/8"
+              : band === "HIGH" ? "border-orange-500/30 bg-orange-500/8"
+              : band === "MODERATE" ? "border-amber-500/30 bg-amber-500/8"
+              : "border-slate-200 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/20"
+            }`}>
+              <p className="text-[9px] font-mono uppercase tracking-widest text-slate-400 mb-1.5">Recommended Action</p>
+              <p className={`text-[11px] font-bold leading-snug ${
+                band === "CRITICAL" ? "text-red-500"
+                : band === "HIGH" ? "text-orange-500"
+                : band === "MODERATE" ? "text-amber-500"
+                : "text-emerald-500"
+              }`}>
+                {band === "CRITICAL" && "🚨 Immediate intervention required"}
+                {band === "HIGH" && "⚠ Dispatch nearest security personnel"}
+                {band === "MODERATE" && "👁 Increase surveillance attention"}
+                {band === "LOW" && "✓ Monitor — minor anomaly detected"}
+                {band === "SAFE" && "✓ Continue standard monitoring"}
+              </p>
+              {liveData && (
+                <p className="text-[9px] text-slate-400 font-mono mt-1">
+                  Confidence: {Math.round(85 + score * 0.1)}% &middot; {liveData.persons.length} persons tracked
+                </p>
+              )}
+            </div>
           </motion.div>
 
           {/* Live Camera Feed */}
@@ -224,28 +304,214 @@ export default function DashboardPage() {
             transition={{ duration: 0.45, delay: 0.1 }}
             className="lg:col-span-2 glass-panel rounded-2xl p-5 border shadow-sm flex flex-col"
           >
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-900/80 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="relative flex">
-                  <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-red-500 opacity-60" />
-                  <span className="relative w-2.5 h-2.5 rounded-full bg-red-500" />
+            {/* ── Card header ── */}
+            <div className="pb-3 border-b border-slate-100 dark:border-slate-900/80 mb-4 space-y-3">
+
+              {/* Title row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex">
+                    <span className="animate-ping absolute inline-flex h-2.5 w-2.5 rounded-full bg-red-500 opacity-60" />
+                    <span className="relative w-2.5 h-2.5 rounded-full bg-red-500" />
+                  </span>
+                  <span className="font-bold text-sm tracking-wide">SURVEILLANCE NODE &mdash; CAM-01 &middot; LOBBY A</span>
+                </div>
+                <span className={`font-mono text-[10px] px-2 py-0.5 rounded-md border ${
+                  inputSource === InputSource.LIVE_CAMERA && webcamStream
+                    ? "text-cyan-500 bg-cyan-500/10 border-cyan-500/20"
+                    : inputSource === InputSource.DEMO_VIDEO && !isSimulated
+                    ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
+                    : inputSource === InputSource.LIVE_CAMERA
+                    ? "text-amber-500 bg-amber-500/10 border-amber-500/20"
+                    : "text-slate-400 bg-slate-100 dark:bg-slate-900 border-transparent"
+                }`}>
+                  {inputSource === InputSource.LIVE_CAMERA && webcamStream
+                    ? "PREVIEW MODE"
+                    : inputSource === InputSource.DEMO_VIDEO && !isSimulated
+                    ? "LIVE INFERENCE"
+                    : inputSource === InputSource.LIVE_CAMERA
+                    ? "SIMULATION ENGINE"
+                    : "SIMULATION ENGINE"}
                 </span>
-                <span className="font-bold text-sm tracking-wide">LIVE STREAM — CAM-01 (LOBBY A)</span>
               </div>
-              <span className="font-mono text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded-md">
-                {isSimulated ? "SIM MODE" : "WS ACTIVE"}
-              </span>
+
+              {/* Input Source selector */}
+              <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-900/60 rounded-lg w-fit">
+                <button
+                  onClick={() => setInputSource(InputSource.DEMO_VIDEO)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold font-mono transition-colors cursor-pointer ${
+                    inputSource === InputSource.DEMO_VIDEO
+                      ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  }`}
+                >
+                  <MonitorPlay className="w-3 h-3" />
+                  Demo Analysis
+                </button>
+                <button
+                  onClick={() => setInputSource(InputSource.LIVE_CAMERA)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold font-mono transition-colors cursor-pointer ${
+                    inputSource === InputSource.LIVE_CAMERA
+                      ? "bg-white dark:bg-slate-800 text-cyan-500 shadow-sm"
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  }`}
+                >
+                  <Camera className="w-3 h-3" />
+                  Live Surveillance
+                </button>
+                <button
+                  disabled
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold font-mono text-slate-300 dark:text-slate-600 cursor-not-allowed relative"
+                  title="RTSP CCTV Integration — Architecture Ready"
+                >
+                  <Network className="w-3 h-3" />
+                  CCTV Network
+                  <span className="ml-1 text-[8px] font-mono text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 px-1 rounded">SOON</span>
+                </button>
+              </div>
+
+              {/* Demo Analysis action area */}
+              {inputSource === InputSource.DEMO_VIDEO && (
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    disabled={isUploading}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-500 hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] font-bold font-mono cursor-pointer"
+                  >
+                    {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                    {isUploading ? "Loading Feed…" : "Run Demo Analysis"}
+                  </button>
+                  <span className="text-[10px] text-slate-400 font-mono">Upload a recorded video to run AI inference</span>
+                </div>
+              )}
+
+              {/* Live Surveillance Preview action area */}
+              {inputSource === InputSource.LIVE_CAMERA && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    {webcamStream ? (
+                      <button
+                        onClick={stopLiveCamera}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors text-[10px] font-bold font-mono cursor-pointer"
+                      >
+                        <MonitorOff className="w-3 h-3" />
+                        Stop Monitoring Preview
+                      </button>
+                    ) : (
+                      <button
+                        onClick={startLiveCamera}
+                        disabled={isStartingWebcam}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-500 hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-[10px] font-bold font-mono cursor-pointer"
+                      >
+                        {isStartingWebcam ? <Loader2 className="w-3 h-3 animate-spin" /> : <Camera className="w-3 h-3" />}
+                        {isStartingWebcam ? "Connecting…" : "Start Monitoring Preview"}
+                      </button>
+                    )}
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {webcamStream ? "Camera active" : "Activates device camera for SOC preview"}
+                    </span>
+                  </div>
+                  {/* Ethical clarity disclaimer — required when webcam is active */}
+                  <div className="flex items-center gap-1.5">
+                    <CircleDot className="w-2.5 h-2.5 text-amber-400 flex-shrink-0" />
+                    <span className="text-[9px] font-mono text-amber-500/80">
+                      PREVIEW MODE &nbsp;&middot;&nbsp; Simulation Risk Engine Active &nbsp;&middot;&nbsp; No real-time camera inference
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Camera canvas */}
             <div className="relative aspect-video w-full bg-slate-950 rounded-xl overflow-hidden scanlines border border-slate-900 hud-corners">
-              <div className="hud-corners-inner absolute inset-0">
+              <div className="hud-corners-inner absolute inset-0 pointer-events-none">
                 {/* HUD corner decorations rendered via CSS */}
               </div>
 
-              <div className="absolute inset-0 flex items-center justify-center text-slate-700 pointer-events-none select-none">
-                <span className="text-[11px] font-mono tracking-widest opacity-20">CCTV · SECURITY CAP</span>
-              </div>
+              {/* ── Video layer: Demo mode ── */}
+              {inputSource === InputSource.DEMO_VIDEO && videoObjectUrl && (
+                <video
+                  key={videoObjectUrl}
+                  src={videoObjectUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              )}
+
+              {/* ── Video layer: Webcam mode ── */}
+              {inputSource === InputSource.LIVE_CAMERA && (
+                <video
+                  ref={webcamVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+                    webcamStream ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+              )}
+
+              {/* ── Idle placeholder ── */}
+              {(inputSource === InputSource.DEMO_VIDEO && !videoObjectUrl && !isUploading) ||
+               (inputSource === InputSource.LIVE_CAMERA && !webcamStream && !isStartingWebcam && !webcamError) ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700 pointer-events-none select-none gap-2">
+                  {inputSource === InputSource.DEMO_VIDEO ? (
+                    <>
+                      <MonitorPlay className="w-8 h-8 opacity-20" />
+                      <span className="text-[10px] font-mono tracking-widest opacity-20">LOAD A DEMO VIDEO TO BEGIN AI ANALYSIS</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-8 h-8 opacity-20" />
+                      <span className="text-[10px] font-mono tracking-widest opacity-20">START MONITORING PREVIEW</span>
+                    </>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Loading Demo Feed overlay */}
+              {isUploading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-10">
+                  <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                  <span className="text-[11px] font-mono text-cyan-400 tracking-widest">LOADING DEMO FEED…</span>
+                  <span className="text-[9px] font-mono text-slate-500 mt-1">Preparing AI inference pipeline</span>
+                </div>
+              )}
+
+              {/* Webcam starting overlay */}
+              {isStartingWebcam && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 z-10">
+                  <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                  <span className="text-[11px] font-mono text-cyan-400 tracking-widest">CONNECTING CAMERA…</span>
+                </div>
+              )}
+
+              {/* Upload error */}
+              {uploadError && !isUploading && (
+                <div className="absolute bottom-10 left-3 right-3 flex items-start gap-2 bg-red-950/90 border border-red-500/40 rounded-lg px-3 py-2 z-10">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-[10px] font-mono text-red-300 leading-snug">{uploadError}</span>
+                </div>
+              )}
+
+              {/* Webcam error */}
+              {webcamError && !isStartingWebcam && (
+                <div className="absolute bottom-10 left-3 right-3 flex items-start gap-2 bg-red-950/90 border border-red-500/40 rounded-lg px-3 py-2 z-10">
+                  <WifiOff className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-[10px] font-mono text-red-300 leading-snug">{webcamError}</span>
+                </div>
+              )}
 
               {/* Person bounding boxes */}
               {liveData?.persons.map((person) => {
@@ -302,12 +568,70 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* ── Structured Alert Card — shown on HIGH / CRITICAL ── */}
+            {(band === "CRITICAL" || band === "HIGH") && liveData && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mt-3 rounded-xl border p-4 ${
+                  band === "CRITICAL"
+                    ? "border-red-500/40 bg-red-500/8"
+                    : "border-orange-500/40 bg-orange-500/8"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Siren className={`w-4 h-4 flex-shrink-0 ${band === "CRITICAL" ? "text-red-500" : "text-orange-500"}`} />
+                    <div>
+                      <span className={`text-xs font-extrabold tracking-wide ${
+                        band === "CRITICAL" ? "text-red-500" : "text-orange-500"
+                      }`}>
+                        ⚠ ACTIVE SECURITY ALERT
+                      </span>
+                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        CAM-01 &middot; Lobby A &nbsp;&middot;&nbsp; Risk Score: {liveData.risk.score} &nbsp;&middot;&nbsp; Confidence: {Math.round(85 + liveData.risk.score * 0.1)}%
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-extrabold font-mono px-2 py-0.5 rounded border flex-shrink-0 ${
+                    band === "CRITICAL"
+                      ? "text-red-500 border-red-500/30 bg-red-500/10"
+                      : "text-orange-500 border-orange-500/30 bg-orange-500/10"
+                  }`}>{band}</span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[9px] font-mono uppercase tracking-widest text-slate-400 mb-1.5">Top Contributing Factors</p>
+                    <ul className="space-y-1">
+                      {liveData.risk.reasons.slice(0, 3).map((r, i) => (
+                        <li key={i} className="flex items-center gap-1.5 text-[10px] text-slate-300">
+                          <Radio className="w-2.5 h-2.5 text-orange-400 flex-shrink-0" />
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-mono uppercase tracking-widest text-slate-400 mb-1.5">Recommended Action</p>
+                    <p className={`text-[11px] font-bold leading-snug ${
+                      band === "CRITICAL" ? "text-red-400" : "text-orange-400"
+                    }`}>
+                      {band === "CRITICAL"
+                        ? "🚨 Immediate intervention — escalate to command"
+                        : "⚠ Dispatch nearest security personnel immediately"}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             <div className="flex justify-between items-center mt-3">
               <p className="text-[11px] font-mono text-slate-400">
-                TRACE: {liveData?.persons.length ?? 0} targets · YOLO11s + ByteTrack
+                {liveData?.persons.length ?? 0} persons under observation &middot; YOLO11s + ByteTrack &middot; {liveData?.proc_fps.toFixed(1) ?? "12.4"} FPS
               </p>
               <Link href="/live" className="text-xs font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1 cursor-pointer transition-colors">
-                <span>Full Viewport</span>
+                <span>SOC Full Viewport</span>
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -362,17 +686,17 @@ export default function DashboardPage() {
             className="lg:col-span-2 glass-panel rounded-2xl p-5 border shadow-sm"
           >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-900/80 mb-4">
-              <span className="font-bold text-sm tracking-wide">AGGRESSION RISK — TIMELINE</span>
+              <span className="font-bold text-sm tracking-wide">ESCALATION RISK &mdash; TIMELINE</span>
               <div className="flex items-center gap-1.5 text-xs font-mono text-cyan-500">
                 <div className="w-1.5 h-1.5 rounded-full bg-cyan-500 live-dot" />
-                REALTIME
+                CONTINUOUS MONITORING
               </div>
             </div>
 
             <div className="h-60 w-full">
               {history.length === 0 ? (
                 <div className="w-full h-full flex items-center justify-center text-slate-500 font-mono text-xs">
-                  Awaiting signal telemetry...
+                  Awaiting telemetry from surveillance nodes…
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -460,7 +784,7 @@ export default function DashboardPage() {
           className="glass-panel rounded-2xl border shadow-sm overflow-hidden"
         >
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-900/80">
-            <span className="font-bold text-sm tracking-wide">RECENT LOGGED INCIDENTS</span>
+            <span className="font-bold text-sm tracking-wide">INCIDENT LOG</span>
             <Link href="/explorer" className="text-xs font-bold text-cyan-500 hover:text-cyan-400 flex items-center gap-1 transition-colors">
               <span>Incident Center</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
@@ -538,6 +862,7 @@ export default function DashboardPage() {
           </span>
         </motion.button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
