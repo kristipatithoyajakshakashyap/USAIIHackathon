@@ -2,6 +2,7 @@
 
 Endpoints (subset of the spec's API surface, wired to the real pipeline):
     GET  /health                  - liveness + device/head info
+    POST /auth/login               - get a JWT access token
     POST /predict   {video_path}  - run a clip, return risk timeline + peak
     POST /upload                  - upload a video, returns a server path
     WS   /live-risk?video=PATH    - stream per-frame risk JSON for a dashboard
@@ -17,14 +18,18 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, File, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
 
 from ..config import Settings, risk_band
 from ..pipeline.engine import PrevailEngine
 from ..pipeline.explain import reasons_text
 from ..security.audit import AuditMiddleware, init_audit_db
 from ..security.inference_guard import InferenceGuardMiddleware
+from ..security.rate_limiter import limiter, rate_limit_exceeded_handler
+from ..auth.auth_routes import router as auth_router
+from ..auth.dependencies import require_role
 from .schemas import (AudioEmotionResponse, AudioWindowOut, FrameOut, PersonOut,
                       PredictResponse, RiskOut)
 
@@ -34,6 +39,11 @@ app.add_middleware(
 )
 app.add_middleware(AuditMiddleware)
 app.add_middleware(InferenceGuardMiddleware)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
+app.include_router(auth_router)
 
 @app.on_event("startup")
 async def startup():
@@ -56,7 +66,12 @@ def health() -> dict:
 
 
 @app.post("/upload")
-async def upload(file: UploadFile = File(...)) -> dict:
+@limiter.limit("5/minute")
+async def upload(
+    request: Request,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_role("admin", "operator")),
+) -> dict:
     dest = UPLOAD_DIR / file.filename
     with open(dest, "wb") as f:
         f.write(await file.read())
@@ -64,8 +79,14 @@ async def upload(file: UploadFile = File(...)) -> dict:
 
 
 @app.post("/analyze", response_model=PredictResponse)
-async def analyze(file: UploadFile = File(...), scene: bool = False,
-                  audio: bool = False) -> PredictResponse:
+@limiter.limit("10/minute")
+async def analyze(
+    request: Request,
+    file: UploadFile = File(...),
+    scene: bool = False,
+    audio: bool = False,
+    user: dict = Depends(require_role("admin", "operator")),
+) -> PredictResponse:
     """One-call endpoint for the frontend: upload a video, get the full result."""
     dest = UPLOAD_DIR / file.filename
     with open(dest, "wb") as f:
@@ -74,7 +95,12 @@ async def analyze(file: UploadFile = File(...), scene: bool = False,
 
 
 @app.post("/analyze-audio", response_model=AudioEmotionResponse)
-async def analyze_audio(file: UploadFile = File(...)) -> AudioEmotionResponse:
+@limiter.limit("10/minute")
+async def analyze_audio(
+    request: Request,
+    file: UploadFile = File(...),
+    user: dict = Depends(require_role("admin", "operator")),
+) -> AudioEmotionResponse:
     """Audio-only emotion classification: upload audio/video, get the emotion."""
     import collections
     from ..pipeline.audio_emotion import AudioEmotionTrack
@@ -108,7 +134,14 @@ async def analyze_audio(file: UploadFile = File(...)) -> AudioEmotionResponse:
 
 
 @app.post("/predict", response_model=PredictResponse)
-def predict(video_path: str, scene: bool = False, audio: bool = False) -> PredictResponse:
+@limiter.limit("10/minute")
+def predict(
+    request: Request,
+    video_path: str,
+    scene: bool = False,
+    audio: bool = False,
+    user: dict = Depends(require_role("admin", "operator")),
+) -> PredictResponse:
     if not Path(video_path).is_file():
         return PredictResponse(success=False, video=video_path, frames_analysed=0,
                                duration_s=0, peak_risk=0, peak_band="SAFE",

@@ -18,6 +18,26 @@ export const WS_URL: string =
   process.env.NEXT_PUBLIC_WS_URL ??
   BASE_URL.replace(/^http/, "ws");
 
+// ── Auth helper ──────────────────────────────────────────────────────────────
+/**
+ * Returns the Authorization header object if a token is stored, otherwise {}.
+ * Spread this into fetch() headers: { ...authHeaders(), "Other-Header": "..." }
+ */
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("prevail_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * Returns the raw token string, or null if not logged in.
+ * Used for WebSocket URLs since WS connections can't set headers directly.
+ */
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("prevail_token");
+}
+
 // ── Input Source ───────────────────────────────────────────────────────────────
 /**
  * Describes where the video feed originates.
@@ -114,7 +134,10 @@ export async function uploadVideo(file: File): Promise<UploadResponse> {
   const response = await fetch(`${BASE_URL}/upload`, {
     method: "POST",
     body: formData,
-    // ⚠ Do NOT set Content-Type — the browser sets multipart + boundary
+    headers: {
+      ...authHeaders(),
+      // ⚠ Do NOT set Content-Type — the browser sets multipart + boundary
+    },
   });
 
   if (!response.ok) {
@@ -146,7 +169,9 @@ export function openLiveRisk(
   onError?: (event: Event) => void,
   onClose?: (event: CloseEvent) => void
 ): WebSocket {
-  const url = `${WS_URL}/live-risk?video=${encodeURIComponent(serverPath)}`;
+  const token = getToken();
+  const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+  const url = `${WS_URL}/live-risk?video=${encodeURIComponent(serverPath)}${tokenParam}`;
   const ws = new WebSocket(url);
 
   ws.onmessage = (event: MessageEvent<string>) => {
