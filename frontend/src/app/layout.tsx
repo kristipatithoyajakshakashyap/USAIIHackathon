@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Sidebar } from "@/components/sidebar";
 import "./globals.css";
+import AuthGuard from "@/components/AuthGuard";
 
 export const metadata: Metadata = {
   title: "PREVAIL - Multimodal Aggression Escalation Intelligence",
@@ -23,14 +24,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <div className="relative min-h-screen flex flex-col lg:flex-row hud-grid overflow-x-hidden">
-            {/* Sidebar Navigation */}
-            <Sidebar />
-            
-            {/* Main Content Workspace */}
-            <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
-              {children}
-            </div>
-          </div>
+  {/* Sidebar Navigation */}
+  <Sidebar />
+  
+  {/* Main Content Workspace */}
+  <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+    <AuthGuard>{children}</AuthGuard>
+  </div>
+</div>
         </ThemeProvider>
       </body>
     </html>

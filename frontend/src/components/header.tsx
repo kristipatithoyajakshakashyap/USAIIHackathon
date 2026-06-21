@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { Bell, Search, ShieldCheck, HelpCircle, User, ArrowRight, Wifi } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { logout } from "@/lib/auth";
+import { LogOut } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 
@@ -16,6 +18,16 @@ export function Header({ title = "Operations Dashboard", onOpenWalkthrough }: He
   const [clock, setClock] = useState("");
   const [pipelinePulse, setPipelinePulse] = useState(true);
   const [notifCount, setNotifCount] = useState(3);
+  const [showProfile, setShowProfile] = useState(false);
+const [username, setUsername] = useState("OPERATOR-A");
+const [role, setRole] = useState("MONITOR");
+
+useEffect(() => {
+  const savedUsername = sessionStorage.getItem("prevail_username");
+  const savedRole = sessionStorage.getItem("prevail_role");
+  if (savedUsername) setUsername(savedUsername.toUpperCase());
+  if (savedRole) setRole(savedRole.toUpperCase());
+}, []);
 
   useEffect(() => {
     const tick = () => {
@@ -195,17 +207,54 @@ export function Header({ title = "Operations Dashboard", onOpenWalkthrough }: He
         {/* Divider */}
         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800" />
 
-        {/* User Profile */}
-        <div className="flex items-center gap-2.5">
-          <div className="relative w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 font-extrabold text-sm">
-            <User className="w-4 h-4" />
-            <span className="absolute bottom-0.5 right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-white dark:border-slate-900" />
+       {/* User Profile */}
+<div className="relative">
+  <button
+    onClick={() => setShowProfile((v) => !v)}
+    className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity"
+  >
+    <div className="relative w-8 h-8 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-600 dark:text-cyan-400 font-extrabold text-sm">
+      <User className="w-4 h-4" />
+      <span className="absolute bottom-0.5 right-0.5 w-2 h-2 bg-emerald-500 rounded-full border border-white dark:border-slate-900" />
+    </div>
+    <div className="hidden lg:flex flex-col leading-tight items-start">
+      <span className="text-xs font-bold">{username}</span>
+      <span className="text-[9px] text-slate-400 font-mono tracking-wider">ROLE: {role}</span>
+    </div>
+  </button>
+
+  <AnimatePresence>
+    {showProfile && (
+      <>
+        <div className="fixed inset-0 z-10" onClick={() => setShowProfile(false)} />
+        <motion.div
+          initial={{ opacity: 0, y: 8, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 8, scale: 0.96 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          className="absolute right-0 mt-2 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 shadow-2xl z-20"
+        >
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-900">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-indigo-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-500">
+              <User className="w-5 h-5" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold">{username}</span>
+              <span className="text-[10px] text-slate-400 font-mono">ROLE: {role}</span>
+            </div>
           </div>
-          <div className="hidden lg:flex flex-col leading-tight">
-            <span className="text-xs font-bold">OPERATOR-A</span>
-            <span className="text-[9px] text-slate-400 font-mono tracking-wider">ROLE: MONITOR</span>
-          </div>
-        </div>
+          <button
+            onClick={() => logout()}
+            className="w-full mt-3 flex items-center gap-2 px-3 py-2 rounded-xl text-red-500 hover:bg-red-500/10 transition-colors font-semibold text-sm cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Logout</span>
+          </button>
+        </motion.div>
+      </>
+    )}
+  </AnimatePresence>
+</div>
       </div>
     </header>
   );

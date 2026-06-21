@@ -22,15 +22,15 @@ import {
 } from "lucide-react";
 
 const LINKS = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Live Monitoring", href: "/live", icon: Eye },
-  { name: "Alert Center", href: "/alerts", icon: AlertTriangle, badge: 3 },
-  { name: "Incident Explorer", href: "/explorer", icon: FolderSearch },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
-  { name: "Explainability", href: "/explainability", icon: Cpu },
-  { name: "Camera Management", href: "/cameras", icon: Video },
-  { name: "AI Reports", href: "/reports", icon: FileText },
-  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["admin", "operator", "viewer"] },
+  { name: "Live Monitoring", href: "/live", icon: Eye, roles: ["admin", "operator"] },
+  { name: "Alert Center", href: "/alerts", icon: AlertTriangle, badge: 3, roles: ["admin", "operator", "viewer"] },
+  { name: "Incident Explorer", href: "/explorer", icon: FolderSearch, roles: ["admin", "operator", "viewer"] },
+  { name: "Analytics", href: "/analytics", icon: BarChart3, roles: ["admin", "operator", "viewer"] },
+  { name: "Explainability", href: "/explainability", icon: Cpu, roles: ["admin", "operator"] },
+  { name: "Camera Management", href: "/cameras", icon: Video, roles: ["admin"] },
+  { name: "AI Reports", href: "/reports", icon: FileText, roles: ["admin", "operator", "viewer"] },
+  { name: "Settings", href: "/settings", icon: Settings, roles: ["admin"] },
 ];
 
 interface NavLinkProps {
@@ -108,7 +108,14 @@ const NavLink = ({ link, isCollapsed, pathname }: NavLinkProps) => {
 
 export function Sidebar() {
   const pathname = usePathname();
+const [userRole, setUserRole] = useState("viewer");
 
+useEffect(() => {
+  const role = sessionStorage.getItem("prevail_role");
+  if (role) setUserRole(role.toLowerCase());
+}, []);
+
+const visibleLinks = LINKS.filter((link) => link.roles.includes(userRole));
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [clock, setClock] = useState("");
@@ -138,7 +145,7 @@ export function Sidebar() {
     collapsed: { width: "76px" },
   };
 
-  if (pathname === "/intro") return null;
+  if (pathname === "/intro" || pathname === "/login") return null;
 
   return (
     <>
@@ -168,7 +175,7 @@ export function Sidebar() {
             exit={{ opacity: 0, y: -16 }}
             className="lg:hidden fixed top-[60px] left-0 right-0 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 z-40 flex flex-col p-4 gap-1.5 shadow-2xl"
           >
-            {LINKS.map((link) => {
+            {visibleLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.href;
               return (
@@ -261,7 +268,7 @@ export function Sidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
-          {LINKS.map((link) => (
+          {visibleLinks.map((link) => (
             <NavLink key={link.name} link={link} isCollapsed={isCollapsed} pathname={pathname} />
           ))}
         </nav>
